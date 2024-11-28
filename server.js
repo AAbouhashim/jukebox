@@ -1,78 +1,84 @@
 const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
 const { PrismaClient } = require('@prisma/client');
+const app = express();
 const prisma = new PrismaClient();
 
-// Initialize Express app
-const app = express();
+app.use(express.json());
 
-// Middleware
-app.use(cors()); // Enable Cross-Origin Resource Sharing (CORS)
-app.use(bodyParser.json()); // Parse incoming JSON requests
-
-// Routes
-app.get('/users', async (req, res, next) => {
+// GET /playlists: Sends an array of all playlists
+app.get('/playlists', async (req, res, next) => {
   try {
-    const users = await prisma.user.findMany();
-    res.json(users);
+    const playlists = await prisma.playlist.findMany({
+      include: { tracks: { include: { track: true } } }, // Include associated tracks
+    });
+    res.json(playlists);
   } catch (error) {
-    next(error); // Forward errors to error-handling middleware
+    next(error);
   }
 });
 
-app.get('/users/:id', async (req, res, next) => {
-  const { id } = req.params;
+// GET /playlists/:id: Sends a specific playlist, including all tracks
+app.get('/playlists/:id', async (req, res, next) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: parseInt(id) },
-      include: { playlists: true },
+    const { id } = req.params;
+    const playlist = await prisma.playlist.findUnique({
+      where: { id: parseInt(id, 10) },
+      include: { tracks: { include: { track: true } } }, // Include associated tracks
     });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+
+    if (!playlist) {
+      res.status(404).json({ error: 'Playlist not found' });
+      return;
     }
-    res.json(user);
+
+    res.json(playlist);
   } catch (error) {
-    next(error); // Forward errors to error-handling middleware
+    next(error);
   }
 });
 
-app.post('/users/:id/playlists', async (req, res, next) => {
-  const { id } = req.params;
-  const { name, description } = req.body;
+// GET /tracks: Sends an array of all tracks
+app.get('/tracks', async (req, res, next) => {
   try {
-    const user = await prisma.user.findUnique({ where: { id: parseInt(id) } });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    const tracks = await prisma.track.findMany();
+    res.json(tracks);
+  } catch (error) {
+    next(error);
+  }
+});
 
-    const playlist = await prisma.playlist.create({
-      data: {
-        name,
-        description,
-        ownerId: user.id,
-      },
+// GET /tracks/:id: Sends a specific track
+app.get('/tracks/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const track = await prisma.track.findUnique({
+      where: { id: parseInt(id, 10) },
     });
 
-    res.status(201).json(playlist);
+    if (!track) {
+      res.status(404).json({ error: 'Track not found' });
+      return;
+    }
+
+    res.json(track);
   } catch (error) {
-    next(error); // Forward errors to error-handling middleware
+    next(error);
   }
 });
 
 // 404 Middleware
 app.use((req, res, next) => {
-  res.status(404).json({ message: 'Route not found' });
+  res.status(404).json({ error: 'Resource not found' });
 });
 
-// Error Handling Middleware
+// Error-handling Middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack); // Log error details
-  res.status(500).json({ message: 'Internal Server Error' });
+  console.error(err.stack);
+  res.status(500).json({ error: 'Internal Server Error' });
 });
 
 // Start the server
 const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT}`);
 });

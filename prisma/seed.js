@@ -3,59 +3,65 @@ const prisma = new PrismaClient();
 
 const seed = async () => {
   try {
-    console.log("Seeding database...");
+    // Create 5 users
+    const users = await prisma.user.createMany({
+      data: [
+        { username: 'Alice' },
+        { username: 'Bob' },
+        { username: 'Charlie' },
+        { username: 'Diana' },
+        { username: 'Eve' },
+      ],
+    });
 
-    // Create users
-    const usersData = [
-      { username: 'Alice' },
-      { username: 'Bob' },
-      { username: 'Charlie' },
-      { username: 'Diana' },
-      { username: 'Eve' },
-    ];
-    const users = await prisma.user.createMany({ data: usersData });
     console.log(`Seeded ${users.count} users.`);
 
-    // Create classic rock songs
-    const tracksData = [
-      { name: 'Bohemian Rhapsody' },
-      { name: 'Hotel California' },
-      { name: 'Stairway to Heaven' },
-      { name: 'Smoke on the Water' },
-      { name: 'Sweet Child O\' Mine' },
-      { name: 'Comfortably Numb' },
-      { name: 'Highway to Hell' },
-      { name: 'Dream On' },
-      { name: 'Free Bird' },
-      { name: 'Another Brick in the Wall' },
-      { name: 'Back in Black' },
-      { name: 'Layla' },
-      { name: 'November Rain' },
-      { name: 'Whole Lotta Love' },
-      { name: 'We Will Rock You' },
-      { name: 'Kashmir' },
-      { name: 'You Shook Me All Night Long' },
-      { name: 'Born to Run' },
-      { name: 'Don\'t Stop Believin\'' },
+    // Create 20 classic rock tracks
+    const trackNames = [
+      'Stairway to Heaven',
+      'Bohemian Rhapsody',
+      'Hotel California',
+      'Sweet Child O\' Mine',
+      'Smoke on the Water',
+      'Free Bird',
+      'Layla',
+      'Another Brick in the Wall',
+      'Born to Run',
+      'Imagine',
+      'Comfortably Numb',
+      'Hey Jude',
+      'Let It Be',
+      'Dream On',
+      'Paint It Black',
+      'Sympathy for the Devil',
+      'All Along the Watchtower',
+      'Knocking on Heaven\'s Door',
+      'Back in Black',
+      'Highway to Hell',
     ];
-    const tracks = await prisma.track.createMany({ data: tracksData });
+
+    const tracks = await prisma.track.createMany({
+      data: trackNames.map((name) => ({ name })),
+    });
+
     console.log(`Seeded ${tracks.count} tracks.`);
 
     // Fetch all tracks and users
     const allTracks = await prisma.track.findMany();
     const allUsers = await prisma.user.findMany();
 
-    // Assign a playlist with exactly 5 tracks to each user
-    for (const user of allUsers) {
+    // Create 10 playlists, each owned by a random user, and assign at least 8 random tracks to each
+    for (let i = 1; i <= 10; i++) {
+      const randomUser = allUsers[Math.floor(Math.random() * allUsers.length)];
       const randomTracks = allTracks
-        .sort(() => 0.5 - Math.random()) // Shuffle tracks
-        .slice(0, 5); // Select exactly 5 tracks
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 8); // Select 8 random tracks
 
       await prisma.playlist.create({
         data: {
-          name: `${user.username}'s Classic Rock Playlist`,
-          description: 'A playlist of great classic rock songs',
-          ownerId: user.id,
+          name: `Playlist ${i}`,
+          description: `Description for Playlist ${i}`,
+          ownerId: randomUser.id,
           tracks: {
             create: randomTracks.map((track) => ({
               trackId: track.id,
@@ -63,10 +69,9 @@ const seed = async () => {
           },
         },
       });
-      console.log(`Created playlist for ${user.username} with 5 tracks.`);
     }
 
-    console.log('Database seeded successfully!');
+    console.log('Seeded database with 5 users, 20 tracks, and 10 playlists.');
   } catch (error) {
     console.error('Error seeding database:', error);
   } finally {
